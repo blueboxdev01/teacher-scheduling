@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teacher Schedule</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f8f9fa;
+    --surface: #ffffff;
+    --border: #e2e8f0;
+    --text: #1a202c;
+    --text-secondary: #64748b;
+    --accent: #4A90D9;
+    --danger: #e74c3c;
+    --success: #2ecc71;
+    --radius: 8px;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  /* --- Header --- */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  header h1 {
+    font-size: 18px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  nav { display: flex; gap: 4px; }
+
+  nav button {
+    background: none;
+    border: none;
+    padding: 8px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    border-radius: var(--radius);
+    color: var(--text-secondary);
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+
+  nav button:hover { background: var(--bg); color: var(--text); }
+  nav button.active { background: var(--accent); color: white; }
+
+  .header-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+  }
+
+  /* --- Buttons --- */
+  .btn {
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
+  .btn-primary:hover { background: #3a7bc8; }
+  .btn-danger { color: var(--danger); }
+  .btn-danger:hover { background: #fef2f2; border-color: var(--danger); }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+  /* --- Main Layout --- */
+  main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* --- Toolbar --- */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .toolbar select {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 13px;
+    background: var(--surface);
+  }
+
+  .toolbar label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+
+  /* --- Conflict Banner --- */
+  .conflict-banner {
+    display: none;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: var(--danger);
+    padding: 10px 16px;
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .conflict-banner.show { display: block; }
+
+  /* --- Day Tabs --- */
+  .day-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+  }
+
+  .day-tab {
+    padding: 6px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    transition: all 0.15s;
+  }
+
+  .day-tab:hover { border-color: var(--accent); color: var(--accent); }
+  .day-tab.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+  /* --- Schedule Grid --- */
+  .grid-wrapper {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+
+  .schedule-grid {
+    display: grid;
+    min-width: 700px;
+    width: 100%;
+  }
+
+  .grid-header {
+    background: var(--bg);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    text-align: center;
+  }
+
+  .grid-label {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+  }
+
+  .grid-cell {
+    padding: 8px;
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    min-height: 52px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+
+  .grid-cell:hover { opacity: 0.85; }
+
+  .grid-cell.assigned {
+    color: white;
+    font-weight: 500;
+  }
+
+  .grid-cell.assigned .cell-teacher { font-weight: 600; font-size: 13px; }
+  .grid-cell.assigned .cell-subject { opacity: 0.85; margin-top: 2px; }
+
+  .grid-cell.break-slot {
+    background: repeating-linear-gradient(
+      45deg, #f1f5f9, #f1f5f9 5px, #e8ecf1 5px, #e8ecf1 10px
+    );
+    cursor: default;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-style: italic;
+    font-size: 11px;
+  }
+
+  .grid-cell.manual-override::after {
+    content: '';
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: white;
+    opacity: 0.7;
+  }
+
+  .grid-cell.empty:hover { background: #f0f7ff; }
+
+  /* --- Empty State --- */
+  .empty-state {
+    text-align: center;
+    padding: 60px 24px;
+    color: var(--text-secondary);
+  }
+
+  .empty-state h3 { font-size: 18px; margin-bottom: 8px; color: var(--text); }
+  .empty-state p { font-size: 14px; }
+
+  /* --- Cards (Teachers / Classrooms) --- */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .card-color {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .card-info { flex: 1; min-width: 0; }
+  .card-info h4 { font-size: 14px; font-weight: 600; }
+  .card-info p { font-size: 12px; color: var(--text-secondary); }
+
+  /* --- Subject Tags --- */
+  .subject-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    background: #eef2ff;
+    color: #4338ca;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .tag-remove {
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    opacity: 0.6;
+  }
+
+  .tag-remove:hover { opacity: 1; }
+
+  .grade-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    background: #fef3c7;
+    color: #92400e;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .subject-add-select, .grade-add-select {
+    padding: 3px 8px;
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    font-size: 12px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  /* --- Forms --- */
+  .add-form {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .add-form h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+
+  .form-row {
+    display: flex;
+    gap: 12px;
+    align-items: end;
+    flex-wrap: wrap;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .form-group label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+
+  .form-group input, .form-group select {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 13px;
+  }
+
+  .form-group input[type="color"] {
+    width: 40px;
+    height: 36px;
+    padding: 2px;
+    cursor: pointer;
+  }
+
+  /* --- Modal --- */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-overlay.show { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 24px;
+    width: 90%;
+    max-width: 420px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  }
+
+  .modal h3 { font-size: 16px; margin-bottom: 16px; }
+
+  .modal .form-group { margin-bottom: 12px; }
+
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 20px;
+  }
+
+  /* --- Toast --- */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--text);
+    color: white;
+    padding: 12px 20px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 300;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s;
+  }
+
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.error { background: var(--danger); }
+
+  /* --- Print --- */
+  @media print {
+    header, .toolbar, .day-tabs, .add-form, .header-actions, nav,
+    .btn, .conflict-banner, .toast, .modal-overlay { display: none !important; }
+
+    main { padding: 0; }
+
+    .grid-wrapper { border: 2px solid #000; }
+
+    .grid-cell.assigned {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    body::before {
+      content: 'Teacher Schedule';
+      display: block;
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 16px;
+    }
+  }
+
+  /* --- Responsive --- */
+  @media (max-width: 768px) {
+    header { padding: 0 12px; gap: 12px; }
+    header h1 { font-size: 15px; }
+    nav button { padding: 6px 10px; font-size: 12px; }
+    main { padding: 12px; }
+    .toolbar { gap: 8px; }
+    .card-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Teacher Schedule</h1>
+  <nav>
+    <button class="active" onclick="showPage('schedule')">Schedule</button>
+    <button onclick="showPage('teachers')">Teachers</button>
+    <button onclick="showPage('classrooms')">Classrooms</button>
+  </nav>
+  <div class="header-actions">
+    <button class="btn" onclick="exportCSV()">Export CSV</button>
+    <button class="btn" onclick="window.print()">Print</button>
+  </div>
+</header>
+
+<main>
+  <!-- ===== Schedule Page ===== -->
+  <div id="page-schedule" class="page active">
+    <div class="toolbar">
+      <button class="btn btn-primary" onclick="generateSchedule()">Generate Schedule</button>
+      <label>View:</label>
+      <select id="view-mode" onchange="renderSchedule()">
+        <option value="classroom">By Classroom</option>
+        <option value="teacher">By Teacher</option>
+      </select>
+      <label>Filter:</label>
+      <select id="filter-teacher" onchange="renderSchedule()">
+        <option value="">All Teachers</option>
+      </select>
+      <select id="filter-classroom" onchange="renderSchedule()">
+        <option value="">All Classrooms</option>
+      </select>
+      <button class="btn" onclick="checkConflicts()">Check Conflicts</button>
+    </div>
+
+    <div id="conflict-banner" class="conflict-banner"></div>
+
+    <div id="day-tabs" class="day-tabs"></div>
+
+    <div id="schedule-content"></div>
+  </div>
+
+  <!-- ===== Teachers Page ===== -->
+  <div id="page-teachers" class="page">
+    <div class="add-form">
+      <h3>Add Teacher</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Name</label>
+          <input type="text" id="teacher-name" placeholder="e.g. Ms. Johnson">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="teacher-email" placeholder="Optional">
+        </div>
+        <div class="form-group">
+          <label>Color</label>
+          <input type="color" id="teacher-color" value="#4A90D9">
+        </div>
+        <button class="btn btn-primary" onclick="addTeacher()">Add</button>
+      </div>
+    </div>
+    <div id="teachers-list" class="card-grid"></div>
+  </div>
+
+  <!-- ===== Classrooms Page ===== -->
+  <div id="page-classrooms" class="page">
+    <div class="add-form">
+      <h3>Add Classroom</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Name</label>
+          <input type="text" id="classroom-name" placeholder="e.g. Room 101">
+        </div>
+        <div class="form-group">
+          <label>Capacity</label>
+          <input type="number" id="classroom-capacity" value="30" min="1">
+        </div>
+        <button class="btn btn-primary" onclick="addClassroom()">Add</button>
+      </div>
+    </div>
+    <div id="classrooms-list" class="card-grid"></div>
+  </div>
+</main>
+
+<!-- ===== Assignment Modal ===== -->
+<div id="modal-overlay" class="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3 id="modal-title">Assign Teacher</h3>
+    <div class="form-group">
+      <label>Teacher</label>
+      <select id="modal-teacher"></select>
+    </div>
+    <div class="form-group">
+      <label>Subject</label>
+      <select id="modal-subject">
+        <option value="">No subject</option>
+      </select>
+    </div>
+    <div id="modal-current" style="font-size:12px;color:var(--text-secondary);margin-top:8px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="modal-remove-btn" onclick="removeAssignment()" style="display:none">Remove</button>
+      <div style="flex:1"></div>
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAssignment()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Edit Teacher Modal ===== -->
+<div id="edit-teacher-overlay" class="modal-overlay" onclick="if(event.target===this)closeEditTeacher()">
+  <div class="modal" style="max-width:480px;">
+    <h3>Edit Teacher</h3>
+    <div class="form-group">
+      <label>Name</label>
+      <input type="text" id="edit-teacher-name" style="width:100%;">
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="edit-teacher-email" style="width:100%;">
+    </div>
+    <div class="form-group">
+      <label>Color</label>
+      <input type="color" id="edit-teacher-color">
+    </div>
+    <div class="form-group" style="margin-top:4px;">
+      <label>Subjects</label>
+      <div id="edit-teacher-subjects" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px;"></div>
+    </div>
+    <div class="form-group" style="margin-top:4px;">
+      <label>Grade Levels</label>
+      <div id="edit-teacher-grades" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px;"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeEditTeacher()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditTeacher()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+  // --- State ---
+  let teachers = [];
+  let classrooms = [];
+  let timeSlots = [];
+  let schedule = [];
+  let subjects = [];
+  let gradeLevels = [];
+  let currentDay = 'Monday';
+  let currentPage = 'schedule';
+  let modalContext = null; // { classroom_id, time_slot_id, existing_assignment }
+
+  const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+  // --- Init ---
+  async function init() {
+    await Promise.all([
+      fetchTeachers(),
+      fetchClassrooms(),
+      fetchTimeSlots(),
+      fetchSchedule(),
+      fetchSubjects(),
+      fetchGradeLevels()
+    ]);
+    renderDayTabs();
+    renderSchedule();
+  }
+
+  // --- API ---
+  async function fetchTeachers() {
+    teachers = await (await fetch('/api/teachers')).json();
+    renderTeacherFilter();
+    renderTeachersPage();
+  }
+
+  async function fetchClassrooms() {
+    classrooms = await (await fetch('/api/classrooms')).json();
+    renderClassroomFilter();
+    renderClassroomsPage();
+  }
+
+  async function fetchTimeSlots() {
+    timeSlots = await (await fetch('/api/timeslots')).json();
+  }
+
+  async function fetchSchedule() {
+    schedule = await (await fetch('/api/schedule')).json();
+  }
+
+  async function fetchSubjects() {
+    subjects = await (await fetch('/api/subjects')).json();
+    renderModalSubject();
+  }
+
+  function renderModalSubject() {
+    const sel = document.getElementById('modal-subject');
+    sel.innerHTML = '<option value="">No subject</option>' +
+      subjects.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+  }
+
+  async function fetchGradeLevels() {
+    gradeLevels = await (await fetch('/api/gradelevels')).json();
+  }
+
+  // --- Pages ---
+  function showPage(page) {
+    currentPage = page;
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + page).classList.add('active');
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('nav button').forEach(b => {
+      if (b.textContent.toLowerCase().includes(page === 'schedule' ? 'schedule' : page))
+        b.classList.add('active');
+    });
+  }
+
+  // --- Day Tabs ---
+  function renderDayTabs() {
+    const container = document.getElementById('day-tabs');
+    container.innerHTML = DAYS.map(d =>
+      `<div class="day-tab ${d === currentDay ? 'active' : ''}" onclick="selectDay('${d}')">${d}</div>`
+    ).join('');
+  }
+
+  function selectDay(day) {
+    currentDay = day;
+    renderDayTabs();
+    renderSchedule();
+  }
+
+  // --- Filters ---
+  function renderTeacherFilter() {
+    const sel = document.getElementById('filter-teacher');
+    sel.innerHTML = '<option value="">All Teachers</option>' +
+      teachers.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+
+    const modalSel = document.getElementById('modal-teacher');
+    modalSel.innerHTML = teachers.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+  }
+
+  function renderClassroomFilter() {
+    const sel = document.getElementById('filter-classroom');
+    sel.innerHTML = '<option value="">All Classrooms</option>' +
+      classrooms.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  }
+
+  // --- Schedule Grid ---
+  function renderSchedule() {
+    const viewMode = document.getElementById('view-mode').value;
+    const filterTeacher = document.getElementById('filter-teacher').value;
+    const filterClassroom = document.getElementById('filter-classroom').value;
+    const container = document.getElementById('schedule-content');
+
+    if (!teachers.length || !classrooms.length) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <h3>Get Started</h3>
+          <p>Add teachers and classrooms first, then generate a schedule.</p>
+        </div>`;
+      return;
+    }
+
+    const daySlots = timeSlots.filter(s => s.day === currentDay);
+    if (!daySlots.length) return;
+
+    // Show day tabs only in classroom view
+    document.getElementById('day-tabs').style.display = viewMode === 'classroom' ? 'flex' : 'none';
+
+    if (viewMode === 'classroom') {
+      renderClassroomView(daySlots, filterTeacher, filterClassroom, container);
+    } else {
+      renderTeacherView(filterTeacher, filterClassroom, container);
+    }
+  }
+
+  function renderClassroomView(daySlots, filterTeacher, filterClassroom, container) {
+    let rows = classrooms;
+    if (filterClassroom) rows = rows.filter(c => c.id == filterClassroom);
+
+    const cols = daySlots.length + 1; // +1 for label column
+    let html = `<div class="grid-wrapper"><div class="schedule-grid" style="grid-template-columns: 140px repeat(${daySlots.length}, 1fr);">`;
+
+    // Header row
+    html += `<div class="grid-header"></div>`;
+    daySlots.forEach(s => {
+      html += `<div class="grid-header">${s.start_time} - ${s.end_time}</div>`;
+    });
+
+    // Data rows
+    rows.forEach(room => {
+      html += `<div class="grid-label">${room.name}</div>`;
+      daySlots.forEach(slot => {
+        const assignment = schedule.find(a =>
+          a.classroom_id === room.id && a.time_slot_id === slot.id
+        );
+
+        if (slot.is_break) {
+          html += `<div class="grid-cell break-slot">Break</div>`;
+        } else if (assignment) {
+          if (filterTeacher && assignment.teacher_id != filterTeacher) {
+            html += `<div class="grid-cell empty" onclick="openModal(${room.id}, ${slot.id})" title="Click to assign"></div>`;
+          } else {
+            const manualClass = assignment.is_manual ? ' manual-override' : '';
+            html += `<div class="grid-cell assigned${manualClass}" style="background:${assignment.teacher_color}" onclick="openModal(${room.id}, ${slot.id})" title="${assignment.teacher_name}">
+              <div class="cell-teacher">${assignment.teacher_name}</div>
+              <div class="cell-subject">${assignment.subject || ''}</div>
+            </div>`;
+          }
+        } else {
+          html += `<div class="grid-cell empty" onclick="openModal(${room.id}, ${slot.id})" title="Click to assign"></div>`;
+        }
+      });
+    });
+
+    html += '</div></div>';
+    container.innerHTML = html;
+  }
+
+  function renderTeacherView(filterTeacher, filterClassroom, container) {
+    let rows = teachers;
+    if (filterTeacher) rows = rows.filter(t => t.id == filterTeacher);
+
+    // For teacher view, show all days — one row per (teacher, day)
+    const slotsPerDay = timeSlots.filter(s => s.day === 'Monday'); // same structure each day
+
+    let html = '';
+    rows.forEach(teacher => {
+      html += `<h3 style="margin:16px 0 8px;font-size:15px;">${teacher.name}</h3>`;
+      html += `<div class="grid-wrapper"><div class="schedule-grid" style="grid-template-columns: 100px repeat(${slotsPerDay.length}, 1fr);">`;
+
+      // Header
+      html += `<div class="grid-header">Day</div>`;
+      slotsPerDay.forEach(s => {
+        html += `<div class="grid-header">${s.start_time}</div>`;
+      });
+
+      DAYS.forEach(day => {
+        html += `<div class="grid-label">${day.slice(0, 3)}</div>`;
+        const daySlots = timeSlots.filter(s => s.day === day);
+        daySlots.forEach(slot => {
+          const assignment = schedule.find(a =>
+            a.teacher_id === teacher.id && a.time_slot_id === slot.id
+          );
+
+          if (slot.is_break) {
+            html += `<div class="grid-cell break-slot">Break</div>`;
+          } else if (assignment) {
+            if (filterClassroom && assignment.classroom_id != filterClassroom) {
+              html += `<div class="grid-cell empty"></div>`;
+            } else {
+              const manualClass = assignment.is_manual ? ' manual-override' : '';
+              html += `<div class="grid-cell assigned${manualClass}" style="background:${assignment.teacher_color}">
+                <div class="cell-teacher">${assignment.classroom_name}</div>
+                <div class="cell-subject">${assignment.subject || ''}</div>
+              </div>`;
+            }
+          } else {
+            html += `<div class="grid-cell empty"></div>`;
+          }
+        });
+      });
+
+      html += '</div></div>';
+    });
+
+    if (!html) {
+      html = '<div class="empty-state"><p>No teachers to show.</p></div>';
+    }
+    container.innerHTML = html;
+  }
+
+  // --- Generate ---
+  async function generateSchedule() {
+    showToast('Generating schedule...');
+    const res = await fetch('/api/schedule/generate', { method: 'POST' });
+    const data = await res.json();
+    await fetchSchedule();
+    renderSchedule();
+    showToast(data.message);
+    if (data.conflicts && data.conflicts.length > 0) {
+      showConflicts(data.conflicts);
+    }
+  }
+
+  // --- Conflicts ---
+  async function checkConflicts() {
+    const res = await fetch('/api/conflicts');
+    const data = await res.json();
+    if (data.valid) {
+      showToast('No conflicts found!');
+      document.getElementById('conflict-banner').classList.remove('show');
+    } else {
+      showConflicts(data.conflicts);
+    }
+  }
+
+  function showConflicts(conflicts) {
+    const banner = document.getElementById('conflict-banner');
+    banner.innerHTML = `<strong>${conflicts.length} conflict(s) found:</strong> ` +
+      conflicts.map(c => `${c.teacher_name} at ${c.day} ${c.start_time} (${c.classrooms})`).join('; ');
+    banner.classList.add('show');
+  }
+
+  // --- Modal ---
+  function openModal(classroomId, timeSlotId) {
+    const existing = schedule.find(a =>
+      a.classroom_id === classroomId && a.time_slot_id === timeSlotId
+    );
+    const slot = timeSlots.find(s => s.id === timeSlotId);
+    const room = classrooms.find(c => c.id === classroomId);
+
+    modalContext = { classroom_id: classroomId, time_slot_id: timeSlotId, existing };
+
+    document.getElementById('modal-title').textContent =
+      `${room?.name || 'Room'} - ${slot?.day || ''} ${slot?.start_time || ''}`;
+
+    if (existing) {
+      document.getElementById('modal-teacher').value = existing.teacher_id;
+      document.getElementById('modal-subject').value = existing.subject || '';
+      document.getElementById('modal-remove-btn').style.display = 'block';
+      document.getElementById('modal-current').textContent =
+        `Currently: ${existing.teacher_name}${existing.is_manual ? ' (manual)' : ''}`;
+    } else {
+      document.getElementById('modal-subject').value = '';
+      document.getElementById('modal-remove-btn').style.display = 'none';
+      document.getElementById('modal-current').textContent = '';
+    }
+
+    document.getElementById('modal-overlay').classList.add('show');
+  }
+
+  function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('show');
+    modalContext = null;
+  }
+
+  async function saveAssignment() {
+    if (!modalContext) return;
+    const teacherId = document.getElementById('modal-teacher').value;
+    const subject = document.getElementById('modal-subject').value;
+
+    // Remove existing first
+    if (modalContext.existing) {
+      await fetch(`/api/assignments/${modalContext.existing.id}`, { method: 'DELETE' });
+    }
+
+    const res = await fetch('/api/assignments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        teacher_id: parseInt(teacherId),
+        classroom_id: modalContext.classroom_id,
+        time_slot_id: modalContext.time_slot_id,
+        subject
+      })
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      showToast(data.error, true);
+    } else {
+      await fetchSchedule();
+      renderSchedule();
+      showToast('Assignment saved.');
+      closeModal();
+    }
+  }
+
+  async function removeAssignment() {
+    if (!modalContext?.existing) return;
+    await fetch(`/api/assignments/${modalContext.existing.id}`, { method: 'DELETE' });
+    await fetchSchedule();
+    renderSchedule();
+    showToast('Assignment removed.');
+    closeModal();
+  }
+
+  // --- Teachers Page ---
+  function renderTeachersPage() {
+    const container = document.getElementById('teachers-list');
+    if (!teachers.length) {
+      container.innerHTML = '<div class="empty-state"><p>No teachers added yet.</p></div>';
+      return;
+    }
+    container.innerHTML = teachers.map(t => {
+      const assignedSubs = (t.subjects || []).map(s =>
+        `<span class="subject-tag">${s.name} <span class="tag-remove" onclick="event.stopPropagation();removeSubjectFromTeacher(${t.id}, ${s.id})">&times;</span></span>`
+      ).join('');
+      const availableSubs = subjects.filter(s => !(t.subjects || []).some(ts => ts.id === s.id));
+      const addSelect = availableSubs.length
+        ? `<select class="subject-add-select" onclick="event.stopPropagation()" onchange="addSubjectToTeacher(${t.id}, this.value); this.value='';">
+            <option value="">+ Add subject</option>
+            ${availableSubs.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+          </select>`
+        : `<span style="font-size:11px;color:var(--text-secondary);font-style:italic;">All subjects assigned</span>`;
+      const assignedGrades = (t.grade_levels || []).map(g =>
+        `<span class="grade-tag">${g.name} <span class="tag-remove" onclick="event.stopPropagation();removeGradeFromTeacher(${t.id}, ${g.id})">&times;</span></span>`
+      ).join('');
+      const availableGrades = gradeLevels.filter(g => !(t.grade_levels || []).some(tg => tg.id === g.id));
+      const addGradeSelect = availableGrades.length
+        ? `<select class="grade-add-select" onclick="event.stopPropagation()" onchange="addGradeToTeacher(${t.id}, this.value); this.value='';">
+            <option value="">+ Add grade</option>
+            ${availableGrades.map(g => `<option value="${g.id}">${g.name}</option>`).join('')}
+          </select>`
+        : `<span style="font-size:11px;color:var(--text-secondary);font-style:italic;">All grades assigned</span>`;
+      return `
+        <div class="card" style="flex-direction:column;align-items:stretch;cursor:pointer;" onclick="openEditTeacher(${t.id})">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div class="card-color" style="background:${t.color}"></div>
+            <div class="card-info">
+              <h4>${t.name}</h4>
+              <p>${t.email || 'No email'}</p>
+            </div>
+            <a class="btn btn-sm" href="/teacher/${t.id}" onclick="event.stopPropagation()" style="margin-left:auto;" target="_blank">Dashboard</a>
+            <button class="btn btn-sm" onclick="event.stopPropagation();openEditTeacher(${t.id})">Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteTeacher(${t.id})">Remove</button>
+          </div>
+          <div style="margin-top:10px;">
+            <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">Subjects</div>
+            <div class="subject-tags" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+              ${assignedSubs}${addSelect}
+            </div>
+          </div>
+          <div style="margin-top:8px;">
+            <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">Grade Levels</div>
+            <div class="subject-tags" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+              ${assignedGrades}${addGradeSelect}
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // --- Edit Teacher Modal ---
+  let editTeacherId = null;
+
+  function openEditTeacher(id) {
+    const t = teachers.find(x => x.id === id);
+    if (!t) return;
+    editTeacherId = id;
+
+    document.getElementById('edit-teacher-name').value = t.name;
+    document.getElementById('edit-teacher-email').value = t.email || '';
+    document.getElementById('edit-teacher-color').value = t.color;
+
+    renderEditSubjects(t);
+    renderEditGrades(t);
+    document.getElementById('edit-teacher-overlay').classList.add('show');
+  }
+
+  function closeEditTeacher() {
+    document.getElementById('edit-teacher-overlay').classList.remove('show');
+    editTeacherId = null;
+  }
+
+  function renderEditSubjects(t) {
+    const container = document.getElementById('edit-teacher-subjects');
+    const assigned = (t.subjects || []);
+    const available = subjects.filter(s => !assigned.some(ts => ts.id === s.id));
+
+    let html = assigned.map(s =>
+      `<span class="subject-tag">${s.name} <span class="tag-remove" onclick="editRemoveSubject(${t.id}, ${s.id})">&times;</span></span>`
+    ).join('');
+
+    html += available.length
+      ? `<select class="subject-add-select" onchange="editAddSubject(${t.id}, this.value); this.value='';">
+          <option value="">+ Add subject</option>
+          ${available.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+        </select>`
+      : `<span style="font-size:11px;color:var(--text-secondary);font-style:italic;">All subjects assigned</span>`;
+
+    container.innerHTML = html;
+  }
+
+  function renderEditGrades(t) {
+    const container = document.getElementById('edit-teacher-grades');
+    const assigned = (t.grade_levels || []);
+    const available = gradeLevels.filter(g => !assigned.some(tg => tg.id === g.id));
+
+    let html = assigned.map(g =>
+      `<span class="grade-tag">${g.name} <span class="tag-remove" onclick="editRemoveGrade(${t.id}, ${g.id})">&times;</span></span>`
+    ).join('');
+
+    html += available.length
+      ? `<select class="grade-add-select" onchange="editAddGrade(${t.id}, this.value); this.value='';">
+          <option value="">+ Add grade</option>
+          ${available.map(g => `<option value="${g.id}">${g.name}</option>`).join('')}
+        </select>`
+      : `<span style="font-size:11px;color:var(--text-secondary);font-style:italic;">All grades assigned</span>`;
+
+    container.innerHTML = html;
+  }
+
+  async function editAddSubject(teacherId, subjectId) {
+    if (!subjectId) return;
+    await fetch(`/api/teachers/${teacherId}/subjects`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subject_id: parseInt(subjectId) })
+    });
+    await fetchTeachers();
+    const t = teachers.find(x => x.id === teacherId);
+    if (t) renderEditSubjects(t);
+    showToast('Subject assigned.');
+  }
+
+  async function editRemoveSubject(teacherId, subjectId) {
+    await fetch(`/api/teachers/${teacherId}/subjects/${subjectId}`, { method: 'DELETE' });
+    await fetchTeachers();
+    const t = teachers.find(x => x.id === teacherId);
+    if (t) renderEditSubjects(t);
+    showToast('Subject removed.');
+  }
+
+  async function editAddGrade(teacherId, gradeId) {
+    if (!gradeId) return;
+    await fetch(`/api/teachers/${teacherId}/gradelevels`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ grade_level_id: parseInt(gradeId) })
+    });
+    await fetchTeachers();
+    const t = teachers.find(x => x.id === teacherId);
+    if (t) renderEditGrades(t);
+    showToast('Grade level assigned.');
+  }
+
+  async function editRemoveGrade(teacherId, gradeId) {
+    await fetch(`/api/teachers/${teacherId}/gradelevels/${gradeId}`, { method: 'DELETE' });
+    await fetchTeachers();
+    const t = teachers.find(x => x.id === teacherId);
+    if (t) renderEditGrades(t);
+    showToast('Grade level removed.');
+  }
+
+  async function saveEditTeacher() {
+    if (!editTeacherId) return;
+    const name = document.getElementById('edit-teacher-name').value.trim();
+    if (!name) { showToast('Name is required.', true); return; }
+
+    await fetch(`/api/teachers/${editTeacherId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        email: document.getElementById('edit-teacher-email').value.trim(),
+        color: document.getElementById('edit-teacher-color').value
+      })
+    });
+
+    await fetchTeachers();
+    showToast('Teacher updated.');
+    closeEditTeacher();
+  }
+
+  async function addSubjectToTeacher(teacherId, subjectId) {
+    if (!subjectId) return;
+    await fetch(`/api/teachers/${teacherId}/subjects`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subject_id: parseInt(subjectId) })
+    });
+    await fetchTeachers();
+    showToast('Subject assigned.');
+  }
+
+  async function removeSubjectFromTeacher(teacherId, subjectId) {
+    await fetch(`/api/teachers/${teacherId}/subjects/${subjectId}`, { method: 'DELETE' });
+    await fetchTeachers();
+    showToast('Subject removed.');
+  }
+
+  async function addGradeToTeacher(teacherId, gradeId) {
+    if (!gradeId) return;
+    await fetch(`/api/teachers/${teacherId}/gradelevels`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ grade_level_id: parseInt(gradeId) })
+    });
+    await fetchTeachers();
+    showToast('Grade level assigned.');
+  }
+
+  async function removeGradeFromTeacher(teacherId, gradeId) {
+    await fetch(`/api/teachers/${teacherId}/gradelevels/${gradeId}`, { method: 'DELETE' });
+    await fetchTeachers();
+    showToast('Grade level removed.');
+  }
+
+  async function addTeacher() {
+    const name = document.getElementById('teacher-name').value.trim();
+    if (!name) { showToast('Name is required.', true); return; }
+    const email = document.getElementById('teacher-email').value.trim();
+    const color = document.getElementById('teacher-color').value;
+
+    await fetch('/api/teachers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, color })
+    });
+
+    document.getElementById('teacher-name').value = '';
+    document.getElementById('teacher-email').value = '';
+    await fetchTeachers();
+    showToast(`Teacher "${name}" added.`);
+  }
+
+  async function deleteTeacher(id) {
+    if (!confirm('Remove this teacher? Their assignments will also be deleted.')) return;
+    await fetch(`/api/teachers/${id}`, { method: 'DELETE' });
+    await Promise.all([fetchTeachers(), fetchSchedule()]);
+    renderSchedule();
+    showToast('Teacher removed.');
+  }
+
+  // --- Classrooms Page ---
+  function renderClassroomsPage() {
+    const container = document.getElementById('classrooms-list');
+    if (!classrooms.length) {
+      container.innerHTML = '<div class="empty-state"><p>No classrooms added yet.</p></div>';
+      return;
+    }
+    container.innerHTML = classrooms.map(c => `
+      <div class="card">
+        <div class="card-color" style="background:var(--accent)"></div>
+        <div class="card-info">
+          <h4>${c.name}</h4>
+          <p>Capacity: ${c.capacity}</p>
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="deleteClassroom(${c.id})">Remove</button>
+      </div>
+    `).join('');
+  }
+
+  async function addClassroom() {
+    const name = document.getElementById('classroom-name').value.trim();
+    if (!name) { showToast('Name is required.', true); return; }
+    const capacity = parseInt(document.getElementById('classroom-capacity').value) || 30;
+
+    await fetch('/api/classrooms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, capacity })
+    });
+
+    document.getElementById('classroom-name').value = '';
+    await fetchClassrooms();
+    showToast(`Classroom "${name}" added.`);
+  }
+
+  async function deleteClassroom(id) {
+    if (!confirm('Remove this classroom? Its assignments will also be deleted.')) return;
+    await fetch(`/api/classrooms/${id}`, { method: 'DELETE' });
+    await Promise.all([fetchClassrooms(), fetchSchedule()]);
+    renderSchedule();
+    showToast('Classroom removed.');
+  }
+
+  // --- Export ---
+  function exportCSV() {
+    window.location.href = '/api/export/csv';
+  }
+
+  // --- Toast ---
+  let toastTimeout;
+  function showToast(msg, isError = false) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show' + (isError ? ' error' : '');
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => el.classList.remove('show'), 3000);
+  }
+
+  // --- Start ---
+  init();
+</script>
+</body>
+</html>

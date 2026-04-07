@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teacher Dashboard</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f8f9fa;
+    --surface: #ffffff;
+    --border: #e2e8f0;
+    --text: #1a202c;
+    --text-secondary: #64748b;
+    --accent: #4A90D9;
+    --radius: 8px;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  /* --- Header --- */
+  .dashboard-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 24px 32px;
+  }
+
+  .header-top {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .header-top a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .header-top a:hover { color: var(--accent); }
+
+  .teacher-profile {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .teacher-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 22px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .teacher-details h1 {
+    font-size: 22px;
+    font-weight: 700;
+  }
+
+  .teacher-details .email {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  .teacher-meta {
+    display: flex;
+    gap: 24px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+
+  .meta-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .meta-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+  }
+
+  .meta-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .subject-tag {
+    display: inline-block;
+    padding: 3px 10px;
+    background: #eef2ff;
+    color: #4338ca;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .grade-tag {
+    display: inline-block;
+    padding: 3px 10px;
+    background: #fef3c7;
+    color: #92400e;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  /* --- Stats --- */
+  .stats-row {
+    display: flex;
+    gap: 16px;
+    padding: 20px 32px;
+    flex-wrap: wrap;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    min-width: 140px;
+    flex: 1;
+  }
+
+  .stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .stat-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  /* --- Schedule Grid --- */
+  .schedule-section {
+    padding: 0 32px 32px;
+  }
+
+  .section-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+
+  .grid-wrapper {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+
+  .schedule-grid {
+    display: grid;
+    min-width: 700px;
+    width: 100%;
+  }
+
+  .grid-header {
+    background: var(--bg);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    text-align: center;
+  }
+
+  .grid-label {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+  }
+
+  .grid-cell {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    min-height: 60px;
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .grid-cell.assigned {
+    color: white;
+    font-weight: 500;
+  }
+
+  .grid-cell.assigned .cell-room {
+    font-weight: 600;
+    font-size: 13px;
+  }
+
+  .grid-cell.assigned .cell-subject {
+    opacity: 0.85;
+    margin-top: 1px;
+  }
+
+  .grid-cell.assigned .cell-grade {
+    opacity: 0.75;
+    font-size: 11px;
+    margin-top: 1px;
+  }
+
+  .grid-cell.break-slot {
+    background: repeating-linear-gradient(
+      45deg, #f1f5f9, #f1f5f9 5px, #e8ecf1 5px, #e8ecf1 10px
+    );
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-style: italic;
+    font-size: 11px;
+  }
+
+  .grid-cell.free {
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-style: italic;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* --- Print --- */
+  @media print {
+    .header-top, .stats-row, .btn { display: none !important; }
+
+    .dashboard-header { padding: 16px; }
+
+    .schedule-section { padding: 0 16px 16px; }
+
+    .grid-cell.assigned {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+  }
+
+  /* --- Responsive --- */
+  @media (max-width: 768px) {
+    .dashboard-header { padding: 16px; }
+    .teacher-profile { flex-direction: column; align-items: flex-start; }
+    .stats-row { padding: 12px 16px; }
+    .schedule-section { padding: 0 16px 16px; }
+    .stat-card { min-width: 100px; }
+  }
+
+  .btn {
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    color: var(--text);
+    display: inline-block;
+  }
+
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="dashboard-header">
+  <div class="header-top">
+    <a href="/">&larr; Back to Admin</a>
+    <div style="margin-left:auto;display:flex;gap:8px;">
+      <button class="btn" onclick="window.print()">Print Schedule</button>
+    </div>
+  </div>
+  <div class="teacher-profile">
+    <div class="teacher-avatar" id="teacher-avatar">?</div>
+    <div class="teacher-details">
+      <h1 id="teacher-name">Loading...</h1>
+      <div class="email" id="teacher-email"></div>
+    </div>
+  </div>
+  <div class="teacher-meta">
+    <div class="meta-group">
+      <div class="meta-label">Subjects</div>
+      <div class="meta-tags" id="teacher-subjects"></div>
+    </div>
+    <div class="meta-group">
+      <div class="meta-label">Grade Levels</div>
+      <div class="meta-tags" id="teacher-grades"></div>
+    </div>
+  </div>
+</div>
+
+<div class="stats-row" id="stats-row"></div>
+
+<div class="schedule-section">
+  <div class="section-title">Weekly Schedule</div>
+  <div id="schedule-grid"></div>
+</div>
+
+<script>
+  const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const teacherId = parseInt(window.location.pathname.split('/').pop());
+
+  let teacher = null;
+  let schedule = [];
+  let timeSlots = [];
+
+  async function init() {
+    const [teachersRes, scheduleRes, slotsRes] = await Promise.all([
+      fetch('/api/teachers'),
+      fetch(`/api/schedule?teacher_id=${teacherId}`),
+      fetch('/api/timeslots')
+    ]);
+
+    const teachers = await teachersRes.json();
+    teacher = teachers.find(t => t.id === teacherId);
+    schedule = await scheduleRes.json();
+    timeSlots = await slotsRes.json();
+
+    if (!teacher) {
+      document.body.innerHTML = '<div style="padding:60px;text-align:center;color:#64748b;"><h2>Teacher not found</h2><a href="/">Back to admin</a></div>';
+      return;
+    }
+
+    document.title = `${teacher.name} — Schedule`;
+    renderProfile();
+    renderStats();
+    renderGrid();
+  }
+
+  function renderProfile() {
+    const initials = teacher.name.split(' ').map(w => w[0]).join('').slice(0, 2);
+    document.getElementById('teacher-avatar').textContent = initials;
+    document.getElementById('teacher-avatar').style.background = teacher.color;
+    document.getElementById('teacher-name').textContent = teacher.name;
+    document.getElementById('teacher-email').textContent = teacher.email || '';
+
+    const subsEl = document.getElementById('teacher-subjects');
+    if (teacher.subjects && teacher.subjects.length) {
+      subsEl.innerHTML = teacher.subjects.map(s =>
+        `<span class="subject-tag">${s.name}</span>`
+      ).join('');
+    } else {
+      subsEl.innerHTML = '<span style="font-size:12px;color:var(--text-secondary);">None assigned</span>';
+    }
+
+    const gradesEl = document.getElementById('teacher-grades');
+    if (teacher.grade_levels && teacher.grade_levels.length) {
+      gradesEl.innerHTML = teacher.grade_levels.map(g =>
+        `<span class="grade-tag">${g.name}</span>`
+      ).join('');
+    } else {
+      gradesEl.innerHTML = '<span style="font-size:12px;color:var(--text-secondary);">None assigned</span>';
+    }
+  }
+
+  function renderStats() {
+    const totalSlots = schedule.length;
+    const uniqueDays = new Set(schedule.map(a => a.day)).size;
+    const uniqueRooms = new Set(schedule.map(a => a.classroom_name || a.classroom_id)).size;
+    const uniqueSubjects = new Set(schedule.filter(a => a.subject).map(a => a.subject)).size;
+
+    // Count total available non-break slots in the week
+    const nonBreakSlots = timeSlots.filter(s => !s.is_break).length;
+    const utilization = nonBreakSlots > 0 ? Math.round((totalSlots / nonBreakSlots) * 100) : 0;
+
+    document.getElementById('stats-row').innerHTML = `
+      <div class="stat-card">
+        <div class="stat-value">${totalSlots}</div>
+        <div class="stat-label">Classes / Week</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${uniqueDays}</div>
+        <div class="stat-label">Active Days</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${uniqueRooms}</div>
+        <div class="stat-label">Classrooms Used</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${uniqueSubjects}</div>
+        <div class="stat-label">Subjects</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${utilization}%</div>
+        <div class="stat-label">Schedule Utilization</div>
+      </div>
+    `;
+  }
+
+  function renderGrid() {
+    const slotsPerDay = timeSlots.filter(s => s.day === 'Monday');
+    const numPeriods = slotsPerDay.length;
+
+    let html = `<div class="grid-wrapper"><div class="schedule-grid" style="grid-template-columns: 90px repeat(${numPeriods}, 1fr);">`;
+
+    // Header row
+    html += `<div class="grid-header">Day</div>`;
+    slotsPerDay.forEach(s => {
+      html += `<div class="grid-header">${s.start_time} - ${s.end_time}</div>`;
+    });
+
+    // One row per day
+    DAYS.forEach(day => {
+      html += `<div class="grid-label">${day}</div>`;
+      const daySlots = timeSlots.filter(s => s.day === day);
+
+      daySlots.forEach(slot => {
+        if (slot.is_break) {
+          html += `<div class="grid-cell break-slot">Break</div>`;
+          return;
+        }
+
+        const assignment = schedule.find(a => a.time_slot_id === slot.id);
+        if (assignment) {
+          // Find grade levels for this teacher (from profile, not per-assignment)
+          const gradeText = (teacher.grade_levels || []).map(g => g.name).join(', ');
+          html += `<div class="grid-cell assigned" style="background:${teacher.color}">
+            <div class="cell-room">${assignment.classroom_name}</div>
+            <div class="cell-subject">${assignment.subject || ''}</div>
+            ${gradeText ? `<div class="cell-grade">${gradeText}</div>` : ''}
+          </div>`;
+        } else {
+          html += `<div class="grid-cell free">Free</div>`;
+        }
+      });
+    });
+
+    html += '</div></div>';
+    document.getElementById('schedule-grid').innerHTML = html;
+  }
+
+  init();
+</script>
+</body>
+</html>
