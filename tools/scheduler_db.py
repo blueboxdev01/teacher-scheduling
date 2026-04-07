@@ -15,22 +15,18 @@ TEACHER_COLORS = [
     '#8BC34A', '#FF5722'
 ]
 
-DEFAULT_TIME_SLOTS = []
 DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
-PERIODS = [
-    ('08:00', '08:45', False),
-    ('08:50', '09:35', False),
-    ('09:40', '10:25', False),
-    ('10:30', '11:15', False),
-    ('11:20', '12:05', True),   # Lunch break
-    ('12:10', '12:55', False),
-    ('13:00', '13:45', False),
-    ('13:50', '14:35', False),
-]
 
-for day in DAYS:
-    for start, end, is_break in PERIODS:
-        DEFAULT_TIME_SLOTS.append((day, start, end, is_break))
+DEFAULT_TEMPLATE = [
+    {'start_time': '08:00', 'end_time': '08:45', 'slot_type': 'Class Period'},
+    {'start_time': '08:50', 'end_time': '09:35', 'slot_type': 'Class Period'},
+    {'start_time': '09:40', 'end_time': '10:25', 'slot_type': 'Class Period'},
+    {'start_time': '10:30', 'end_time': '11:15', 'slot_type': 'Class Period'},
+    {'start_time': '11:20', 'end_time': '12:05', 'slot_type': 'Lunch'},
+    {'start_time': '12:10', 'end_time': '12:55', 'slot_type': 'Class Period'},
+    {'start_time': '13:00', 'end_time': '13:45', 'slot_type': 'Class Period'},
+    {'start_time': '13:50', 'end_time': '14:35', 'slot_type': 'Class Period'},
+]
 
 
 def get_db(db_path=None):
@@ -65,7 +61,9 @@ def init_db(db_path=None):
             day TEXT NOT NULL,
             start_time TEXT NOT NULL,
             end_time TEXT NOT NULL,
-            is_break INTEGER DEFAULT 0
+            is_break INTEGER DEFAULT 0,
+            slot_type TEXT NOT NULL DEFAULT 'Class Period',
+            slot_order INTEGER NOT NULL DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS assignments (
@@ -135,10 +133,14 @@ def init_db(db_path=None):
     # Seed time slots if empty
     existing = c.execute("SELECT COUNT(*) FROM time_slots").fetchone()[0]
     if existing == 0:
-        c.executemany(
-            "INSERT INTO time_slots (day, start_time, end_time, is_break) VALUES (?, ?, ?, ?)",
-            [(d, s, e, int(b)) for d, s, e, b in DEFAULT_TIME_SLOTS]
-        )
+        for day in DAYS:
+            for order, slot in enumerate(DEFAULT_TEMPLATE, 1):
+                is_break = 0 if slot['slot_type'] == 'Class Period' else 1
+                c.execute(
+                    "INSERT INTO time_slots (day, start_time, end_time, is_break, slot_type, slot_order) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    (day, slot['start_time'], slot['end_time'], is_break, slot['slot_type'], order)
+                )
 
     conn.commit()
     conn.close()
