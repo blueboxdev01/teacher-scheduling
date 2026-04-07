@@ -116,6 +116,18 @@ def init_db(db_path=None):
             FOREIGN KEY (grade_level_id) REFERENCES grade_levels(id) ON DELETE CASCADE,
             UNIQUE (teacher_id, grade_level_id)
         );
+
+        CREATE TABLE IF NOT EXISTS sections (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            grade_level_id INTEGER NOT NULL,
+            section_number INTEGER NOT NULL,
+            homeroom_teacher_id INTEGER UNIQUE,
+            classroom_id INTEGER UNIQUE,
+            FOREIGN KEY (grade_level_id) REFERENCES grade_levels(id) ON DELETE CASCADE,
+            FOREIGN KEY (homeroom_teacher_id) REFERENCES teachers(id) ON DELETE SET NULL,
+            FOREIGN KEY (classroom_id) REFERENCES classrooms(id) ON DELETE SET NULL,
+            UNIQUE(grade_level_id, section_number)
+        );
     """)
 
     # Seed default subjects if empty
@@ -129,6 +141,24 @@ def init_db(db_path=None):
     if existing_grades == 0:
         default_grades = ['G1', 'G2', 'G3', 'G4', 'G5']
         c.executemany("INSERT INTO grade_levels (name) VALUES (?)", [(g,) for g in default_grades])
+
+    # Seed sections and homeroom classrooms if empty
+    existing_sections = c.execute("SELECT COUNT(*) FROM sections").fetchone()[0]
+    if existing_sections == 0:
+        grade_rows = c.execute("SELECT id, name FROM grade_levels ORDER BY name").fetchall()
+        for grade in grade_rows:
+            for sec_num in range(1, 4):  # 3 sections per grade
+                # Create homeroom classroom
+                c.execute(
+                    "INSERT INTO classrooms (name, capacity) VALUES (?, ?)",
+                    (f"{grade[1]}-{sec_num} Homeroom", 30)
+                )
+                classroom_id = c.lastrowid
+                # Create section with classroom assigned
+                c.execute(
+                    "INSERT INTO sections (grade_level_id, section_number, classroom_id) VALUES (?, ?, ?)",
+                    (grade[0], sec_num, classroom_id)
+                )
 
     # Seed time slots if empty
     existing = c.execute("SELECT COUNT(*) FROM time_slots").fetchone()[0]
