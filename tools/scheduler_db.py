@@ -238,6 +238,45 @@ def get_time_slots(db_path=None):
     return [dict(r) for r in rows]
 
 
+def get_time_slot_template(db_path=None):
+    """Returns the unique slot template from Monday (since all days are identical)."""
+    conn = get_db(db_path)
+    rows = conn.execute(
+        "SELECT slot_order, start_time, end_time, slot_type, is_break "
+        "FROM time_slots WHERE day = 'Monday' ORDER BY slot_order"
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def save_time_slot_template(slots, db_path=None):
+    """
+    Saves a new time slot template. Deletes all existing time_slots
+    and inserts new ones fanned out across Mon-Fri.
+
+    slots: list of {'start_time': str, 'end_time': str, 'slot_type': str}
+    """
+    conn = get_db(db_path)
+    conn.execute("DELETE FROM time_slots")
+    for day in DAYS:
+        for order, slot in enumerate(slots, 1):
+            is_break = 0 if slot['slot_type'] == 'Class Period' else 1
+            conn.execute(
+                "INSERT INTO time_slots (day, start_time, end_time, is_break, slot_type, slot_order) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (day, slot['start_time'], slot['end_time'], is_break, slot['slot_type'], order)
+            )
+    conn.commit()
+    conn.close()
+
+
+def has_assignments(db_path=None):
+    conn = get_db(db_path)
+    count = conn.execute("SELECT COUNT(*) FROM assignments").fetchone()[0]
+    conn.close()
+    return count > 0
+
+
 # --- Constraints ---
 
 def add_constraint(teacher_id, time_slot_id, constraint_type='unavailable', db_path=None):
