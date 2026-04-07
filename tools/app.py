@@ -21,7 +21,8 @@ from scheduler_db import (
     get_subjects, add_subject, delete_subject,
     assign_subject_to_teacher, remove_subject_from_teacher,
     get_teacher_subjects, get_teachers_with_subjects,
-    get_grade_levels, assign_grade_to_teacher, remove_grade_from_teacher
+    get_grade_levels, assign_grade_to_teacher, remove_grade_from_teacher,
+    get_time_slot_template, save_time_slot_template, has_assignments
 )
 from schedule_generator import generate_schedule, validate_schedule
 
@@ -178,6 +179,43 @@ def api_delete_classroom(classroom_id):
 
 
 # --- Time Slots ---
+
+@app.route('/api/timeslots/template', methods=['GET'])
+def api_get_template():
+    return jsonify(get_time_slot_template())
+
+
+@app.route('/api/timeslots/template', methods=['PUT'])
+def api_save_template():
+    data = request.get_json()
+    slots = data.get('slots', [])
+    clear = data.get('clear_assignments', False)
+
+    if not slots:
+        return jsonify({'error': 'At least one time slot is required'}), 400
+
+    for s in slots:
+        if not s.get('start_time') or not s.get('end_time') or not s.get('slot_type'):
+            return jsonify({'error': 'Each slot needs start_time, end_time, and slot_type'}), 400
+
+    if has_assignments() and not clear:
+        return jsonify({'error': 'Assignments exist. Set clear_assignments=true to proceed.'}), 409
+
+    if clear:
+        from scheduler_db import get_db
+        conn = get_db()
+        conn.execute("DELETE FROM assignments")
+        conn.commit()
+        conn.close()
+
+    save_time_slot_template(slots)
+    return jsonify({'message': f'Template saved with {len(slots)} slots across 5 days.'})
+
+
+@app.route('/api/assignments/exists', methods=['GET'])
+def api_assignments_exist():
+    return jsonify({'exists': has_assignments()})
+
 
 @app.route('/api/timeslots', methods=['GET'])
 def api_get_timeslots():
