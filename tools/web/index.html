@@ -448,6 +448,85 @@
     }
   }
 
+  /* --- Time Slot Editor --- */
+  .slot-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .slot-row:last-child { border-bottom: none; }
+
+  .slot-order {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 28px;
+    text-align: center;
+  }
+
+  .slot-row input[type="time"] {
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-family: inherit;
+  }
+
+  .slot-type-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+  }
+
+  .slot-type-select {
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-family: inherit;
+    min-width: 120px;
+  }
+
+  .slot-break-label {
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-family: inherit;
+    width: 140px;
+  }
+
+  .slot-actions {
+    display: flex;
+    gap: 4px;
+  }
+
+  .slot-actions button {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    padding: 4px 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    transition: all 0.15s;
+  }
+
+  .slot-actions button:hover {
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  .slot-actions button.slot-delete:hover {
+    background: var(--danger);
+    color: white;
+    border-color: var(--danger);
+  }
+
   /* --- Responsive --- */
   @media (max-width: 768px) {
     header { padding: 0 12px; gap: 12px; }
@@ -467,6 +546,7 @@
     <button class="active" onclick="showPage('schedule')">Schedule</button>
     <button onclick="showPage('teachers')">Teachers</button>
     <button onclick="showPage('classrooms')">Classrooms</button>
+    <button onclick="showPage('timeslots')">Time Slots</button>
   </nav>
   <div class="header-actions">
     <button class="btn" onclick="exportCSV()">Export CSV</button>
@@ -542,6 +622,20 @@
     </div>
     <div id="classrooms-list" class="card-grid"></div>
   </div>
+  <!-- ===== Time Slots Page ===== -->
+  <div id="page-timeslots" class="page">
+    <div class="add-form">
+      <h3>Time Slot Template</h3>
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">
+        Define the periods for each school day. This template applies to all weekdays (Mon-Fri).
+      </p>
+      <div id="timeslot-list"></div>
+      <div style="margin-top:12px;display:flex;gap:8px;">
+        <button class="btn" onclick="addSlotRow()">+ Add Slot</button>
+        <button class="btn btn-primary" onclick="saveTemplate()">Save Time Slots</button>
+      </div>
+    </div>
+  </div>
 </main>
 
 <!-- ===== Assignment Modal ===== -->
@@ -599,6 +693,20 @@
   </div>
 </div>
 
+<!-- ===== Time Slot Warning Modal ===== -->
+<div id="timeslot-warning-overlay" class="modal-overlay" onclick="if(event.target===this)closeTimeslotWarning()">
+  <div class="modal" style="max-width:420px;">
+    <h3 style="color:var(--danger);">Warning</h3>
+    <p style="margin:12px 0;font-size:14px;">
+      Changing time slots will affect existing schedules. All current assignments will be cleared.
+    </p>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeTimeslotWarning()">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmSaveTemplate()">Clear &amp; Save</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
@@ -611,6 +719,7 @@
   let gradeLevels = [];
   let currentDay = 'Monday';
   let currentPage = 'schedule';
+  let slotTemplate = [];
   let modalContext = null; // { classroom_id, time_slot_id, existing_assignment }
 
   const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -623,7 +732,8 @@
       fetchTimeSlots(),
       fetchSchedule(),
       fetchSubjects(),
-      fetchGradeLevels()
+      fetchGradeLevels(),
+      fetchTemplate()
     ]);
     renderDayTabs();
     renderSchedule();
@@ -665,6 +775,11 @@
     gradeLevels = await (await fetch('/api/gradelevels')).json();
   }
 
+  async function fetchTemplate() {
+    slotTemplate = await (await fetch('/api/timeslots/template')).json();
+    renderTimeSlotsPage();
+  }
+
   // --- Pages ---
   function showPage(page) {
     currentPage = page;
@@ -672,8 +787,9 @@
     document.getElementById('page-' + page).classList.add('active');
     document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('nav button').forEach(b => {
-      if (b.textContent.toLowerCase().includes(page === 'schedule' ? 'schedule' : page))
-        b.classList.add('active');
+      const text = b.textContent.toLowerCase().replace(/\s+/g, '');
+      const pageKey = page.toLowerCase().replace(/\s+/g, '');
+      if (text.includes(pageKey)) b.classList.add('active');
     });
   }
 
@@ -758,7 +874,7 @@
         );
 
         if (slot.is_break) {
-          html += `<div class="grid-cell break-slot">Break</div>`;
+          html += `<div class="grid-cell break-slot">${slot.slot_type || 'Break'}</div>`;
         } else if (assignment) {
           if (filterTeacher && assignment.teacher_id != filterTeacher) {
             html += `<div class="grid-cell empty" onclick="openModal(${room.id}, ${slot.id})" title="Click to assign"></div>`;
@@ -806,7 +922,7 @@
           );
 
           if (slot.is_break) {
-            html += `<div class="grid-cell break-slot">Break</div>`;
+            html += `<div class="grid-cell break-slot">${slot.slot_type || 'Break'}</div>`;
           } else if (assignment) {
             if (filterClassroom && assignment.classroom_id != filterClassroom) {
               html += `<div class="grid-cell empty"></div>`;
@@ -1217,6 +1333,138 @@
     await Promise.all([fetchClassrooms(), fetchSchedule()]);
     renderSchedule();
     showToast('Classroom removed.');
+  }
+
+  // --- Time Slots Page ---
+  function renderTimeSlotsPage() {
+    const container = document.getElementById('timeslot-list');
+    if (!container) return;
+
+    if (!slotTemplate.length) {
+      container.innerHTML = '<div class="empty-state"><p>No time slots defined. Add slots below.</p></div>';
+      return;
+    }
+
+    container.innerHTML = slotTemplate.map((slot, i) => {
+      const isBreak = slot.slot_type !== 'Class Period';
+      return `
+        <div class="slot-row" data-index="${i}">
+          <span class="slot-order">${i + 1}</span>
+          <input type="time" value="${slot.start_time}" onchange="updateSlot(${i}, 'start_time', this.value)">
+          <span style="color:var(--text-secondary);">to</span>
+          <input type="time" value="${slot.end_time}" onchange="updateSlot(${i}, 'end_time', this.value)">
+          <div class="slot-type-group">
+            <select class="slot-type-select" onchange="toggleSlotType(${i}, this.value)">
+              <option value="Class Period" ${!isBreak ? 'selected' : ''}>Class Period</option>
+              <option value="break" ${isBreak ? 'selected' : ''}>Break</option>
+            </select>
+            ${isBreak ? `<input type="text" class="slot-break-label" value="${slot.slot_type}" placeholder="e.g. Lunch, Recess" onchange="updateSlot(${i}, 'slot_type', this.value)">` : ''}
+          </div>
+          <div class="slot-actions">
+            <button onclick="moveSlot(${i}, -1)" ${i === 0 ? 'disabled' : ''} title="Move up">&#9650;</button>
+            <button onclick="moveSlot(${i}, 1)" ${i === slotTemplate.length - 1 ? 'disabled' : ''} title="Move down">&#9660;</button>
+            <button class="slot-delete" onclick="removeSlot(${i})" title="Delete">&times;</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function updateSlot(index, field, value) {
+    slotTemplate[index][field] = value;
+  }
+
+  function toggleSlotType(index, value) {
+    if (value === 'Class Period') {
+      slotTemplate[index].slot_type = 'Class Period';
+    } else {
+      slotTemplate[index].slot_type = 'Break';
+    }
+    renderTimeSlotsPage();
+  }
+
+  function addSlotRow() {
+    const last = slotTemplate[slotTemplate.length - 1];
+    slotTemplate.push({
+      start_time: last ? last.end_time : '08:00',
+      end_time: last ? incrementTime(last.end_time, 45) : '08:45',
+      slot_type: 'Class Period',
+      slot_order: slotTemplate.length + 1
+    });
+    renderTimeSlotsPage();
+  }
+
+  function incrementTime(time, minutes) {
+    const [h, m] = time.split(':').map(Number);
+    const total = h * 60 + m + minutes;
+    const nh = Math.floor(total / 60) % 24;
+    const nm = total % 60;
+    return String(nh).padStart(2, '0') + ':' + String(nm).padStart(2, '0');
+  }
+
+  function removeSlot(index) {
+    if (slotTemplate.length <= 1) {
+      showToast('Must have at least one time slot.', true);
+      return;
+    }
+    slotTemplate.splice(index, 1);
+    renderTimeSlotsPage();
+  }
+
+  function moveSlot(index, direction) {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= slotTemplate.length) return;
+    const temp = slotTemplate[index];
+    slotTemplate[index] = slotTemplate[newIndex];
+    slotTemplate[newIndex] = temp;
+    renderTimeSlotsPage();
+  }
+
+  async function saveTemplate() {
+    if (!slotTemplate.length) {
+      showToast('Add at least one time slot.', true);
+      return;
+    }
+
+    const res = await fetch('/api/assignments/exists');
+    const data = await res.json();
+
+    if (data.exists) {
+      document.getElementById('timeslot-warning-overlay').classList.add('show');
+    } else {
+      doSaveTemplate(false);
+    }
+  }
+
+  function closeTimeslotWarning() {
+    document.getElementById('timeslot-warning-overlay').classList.remove('show');
+  }
+
+  async function confirmSaveTemplate() {
+    closeTimeslotWarning();
+    await doSaveTemplate(true);
+  }
+
+  async function doSaveTemplate(clearAssignments) {
+    const slots = slotTemplate.map(s => ({
+      start_time: s.start_time,
+      end_time: s.end_time,
+      slot_type: s.slot_type
+    }));
+
+    const res = await fetch('/api/timeslots/template', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slots, clear_assignments: clearAssignments })
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      showToast(data.error, true);
+    } else {
+      await Promise.all([fetchTimeSlots(), fetchTemplate(), fetchSchedule()]);
+      renderSchedule();
+      showToast(data.message);
+    }
   }
 
   // --- Export ---
