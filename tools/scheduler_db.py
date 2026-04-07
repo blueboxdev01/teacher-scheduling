@@ -471,6 +471,103 @@ def remove_grade_from_teacher(teacher_id, grade_level_id, db_path=None):
     conn.close()
 
 
+# --- Sections ---
+
+def get_sections(grade_level_id=None, db_path=None):
+    conn = get_db(db_path)
+    query = (
+        "SELECT s.id, s.grade_level_id, g.name as grade_name, s.section_number, "
+        "s.homeroom_teacher_id, t.name as teacher_name, t.color as teacher_color, "
+        "s.classroom_id, c.name as classroom_name "
+        "FROM sections s "
+        "JOIN grade_levels g ON s.grade_level_id = g.id "
+        "LEFT JOIN teachers t ON s.homeroom_teacher_id = t.id "
+        "LEFT JOIN classrooms c ON s.classroom_id = c.id "
+    )
+    if grade_level_id:
+        query += "WHERE s.grade_level_id = ? "
+        query += "ORDER BY g.name, s.section_number"
+        rows = conn.execute(query, (grade_level_id,)).fetchall()
+    else:
+        query += "ORDER BY g.name, s.section_number"
+        rows = conn.execute(query).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def set_section_count(grade_level_id, count, db_path=None):
+    conn = get_db(db_path)
+    current = conn.execute(
+        "SELECT COUNT(*) FROM sections WHERE grade_level_id = ?",
+        (grade_level_id,)
+    ).fetchone()[0]
+
+    if count > current:
+        for sec_num in range(current + 1, count + 1):
+            conn.execute(
+                "INSERT INTO sections (grade_level_id, section_number) VALUES (?, ?)",
+                (grade_level_id, sec_num)
+            )
+    elif count < current:
+        conn.execute(
+            "DELETE FROM sections WHERE grade_level_id = ? AND section_number > ?",
+            (grade_level_id, count)
+        )
+
+    conn.commit()
+    conn.close()
+
+
+def assign_homeroom_teacher(section_id, teacher_id, db_path=None):
+    conn = get_db(db_path)
+    if teacher_id is None:
+        conn.execute(
+            "UPDATE sections SET homeroom_teacher_id = NULL WHERE id = ?",
+            (section_id,)
+        )
+        conn.commit()
+        conn.close()
+        return True, None
+
+    # Clear any existing section assignment for this teacher
+    conn.execute(
+        "UPDATE sections SET homeroom_teacher_id = NULL WHERE homeroom_teacher_id = ?",
+        (teacher_id,)
+    )
+    conn.execute(
+        "UPDATE sections SET homeroom_teacher_id = ? WHERE id = ?",
+        (teacher_id, section_id)
+    )
+    conn.commit()
+    conn.close()
+    return True, None
+
+
+def assign_section_classroom(section_id, classroom_id, db_path=None):
+    conn = get_db(db_path)
+    if classroom_id is None:
+        conn.execute(
+            "UPDATE sections SET classroom_id = NULL WHERE id = ?",
+            (section_id,)
+        )
+        conn.commit()
+        conn.close()
+        return True, None
+
+    # Clear any existing section assignment for this classroom
+    conn.execute(
+        "UPDATE sections SET classroom_id = NULL WHERE classroom_id = ?",
+        (classroom_id,)
+    )
+    conn.execute(
+        "UPDATE sections SET classroom_id = ? WHERE id = ?",
+        (classroom_id, section_id)
+    )
+    conn.commit()
+    conn.close()
+    return True, None
+
+
 # --- Assignments ---
 
 def create_assignment(teacher_id, classroom_id, time_slot_id, subject='', is_manual=0, db_path=None):
