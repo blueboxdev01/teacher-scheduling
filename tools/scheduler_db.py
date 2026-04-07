@@ -232,7 +232,7 @@ def get_time_slots(db_path=None):
     rows = conn.execute(
         "SELECT * FROM time_slots ORDER BY CASE day "
         "WHEN 'Monday' THEN 1 WHEN 'Tuesday' THEN 2 WHEN 'Wednesday' THEN 3 "
-        "WHEN 'Thursday' THEN 4 WHEN 'Friday' THEN 5 END, start_time"
+        "WHEN 'Thursday' THEN 4 WHEN 'Friday' THEN 5 END, slot_order, start_time"
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
