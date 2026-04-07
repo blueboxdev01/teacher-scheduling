@@ -22,7 +22,8 @@ from scheduler_db import (
     assign_subject_to_teacher, remove_subject_from_teacher,
     get_teacher_subjects, get_teachers_with_subjects,
     get_grade_levels, assign_grade_to_teacher, remove_grade_from_teacher,
-    get_time_slot_template, save_time_slot_template, has_assignments
+    get_time_slot_template, save_time_slot_template, has_assignments,
+    get_sections, set_section_count, assign_homeroom_teacher, assign_section_classroom
 )
 from schedule_generator import generate_schedule, validate_schedule
 
@@ -153,6 +154,44 @@ def api_assign_grade(teacher_id):
 def api_remove_grade(teacher_id, grade_level_id):
     remove_grade_from_teacher(teacher_id, grade_level_id)
     return jsonify({'message': 'Grade level removed from teacher.'})
+
+
+# --- Sections ---
+
+@app.route('/api/sections', methods=['GET'])
+def api_get_sections():
+    grade_level_id = request.args.get('grade_level_id', type=int)
+    return jsonify(get_sections(grade_level_id))
+
+
+@app.route('/api/gradelevels/<int:grade_level_id>/sections', methods=['PUT'])
+def api_set_section_count(grade_level_id):
+    data = request.get_json()
+    count = data.get('count')
+    if count is None or count < 0:
+        return jsonify({'error': 'count must be a non-negative integer'}), 400
+    set_section_count(grade_level_id, count)
+    return jsonify({'message': f'Section count set to {count}.'})
+
+
+@app.route('/api/sections/<int:section_id>/teacher', methods=['PUT'])
+def api_assign_homeroom_teacher(section_id):
+    data = request.get_json()
+    teacher_id = data.get('teacher_id')  # None to clear
+    ok, error = assign_homeroom_teacher(section_id, teacher_id)
+    if error:
+        return jsonify({'error': error}), 409
+    return jsonify({'message': 'Homeroom teacher updated.'})
+
+
+@app.route('/api/sections/<int:section_id>/classroom', methods=['PUT'])
+def api_assign_section_classroom(section_id):
+    data = request.get_json()
+    classroom_id = data.get('classroom_id')  # None to clear
+    ok, error = assign_section_classroom(section_id, classroom_id)
+    if error:
+        return jsonify({'error': error}), 409
+    return jsonify({'message': 'Section classroom updated.'})
 
 
 # --- Classrooms ---
