@@ -527,6 +527,71 @@
     border-color: var(--danger);
   }
 
+  /* --- Grades & Sections --- */
+  .grade-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  .grade-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .grade-card-header h4 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .grade-card-header input[type="number"] {
+    width: 60px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-family: inherit;
+  }
+
+  .section-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .section-table th {
+    text-align: left;
+    padding: 8px;
+    border-bottom: 2px solid var(--border);
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 12px;
+  }
+
+  .section-table td {
+    padding: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .section-table select {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-family: inherit;
+    background: var(--surface);
+  }
+
   /* --- Responsive --- */
   @media (max-width: 768px) {
     header { padding: 0 12px; gap: 12px; }
@@ -547,6 +612,7 @@
     <button onclick="showPage('teachers')">Teachers</button>
     <button onclick="showPage('classrooms')">Classrooms</button>
     <button onclick="showPage('timeslots')">Time Slots</button>
+    <button onclick="showPage('grades')">Grades & Sections</button>
   </nav>
   <div class="header-actions">
     <button class="btn" onclick="exportCSV()">Export CSV</button>
@@ -636,6 +702,17 @@
       </div>
     </div>
   </div>
+
+  <!-- ===== Grades & Sections Page ===== -->
+  <div id="page-grades" class="page">
+    <div class="add-form">
+      <h3>Grades & Sections</h3>
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">
+        Configure sections per grade level and assign homeroom teachers and classrooms.
+      </p>
+    </div>
+    <div id="grades-sections-list"></div>
+  </div>
 </main>
 
 <!-- ===== Assignment Modal ===== -->
@@ -720,6 +797,7 @@
   let currentDay = 'Monday';
   let currentPage = 'schedule';
   let slotTemplate = [];
+  let sections = [];
   let modalContext = null; // { classroom_id, time_slot_id, existing_assignment }
 
   const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -733,7 +811,8 @@
       fetchSchedule(),
       fetchSubjects(),
       fetchGradeLevels(),
-      fetchTemplate()
+      fetchTemplate(),
+      fetchSections()
     ]);
     renderDayTabs();
     renderSchedule();
@@ -778,6 +857,11 @@
   async function fetchTemplate() {
     slotTemplate = await (await fetch('/api/timeslots/template')).json();
     renderTimeSlotsPage();
+  }
+
+  async function fetchSections() {
+    sections = await (await fetch('/api/sections')).json();
+    renderGradesSectionsPage();
   }
 
   // --- Pages ---
@@ -1463,6 +1547,125 @@
     } else {
       await Promise.all([fetchTimeSlots(), fetchTemplate(), fetchSchedule()]);
       renderSchedule();
+      showToast(data.message);
+    }
+  }
+
+  // --- Grades & Sections Page ---
+  function renderGradesSectionsPage() {
+    const container = document.getElementById('grades-sections-list');
+    if (!container) return;
+
+    if (!gradeLevels.length) {
+      container.innerHTML = '<div class="empty-state"><p>No grade levels defined.</p></div>';
+      return;
+    }
+
+    const assignedTeacherIds = new Set(sections.filter(s => s.homeroom_teacher_id).map(s => s.homeroom_teacher_id));
+    const assignedClassroomIds = new Set(sections.filter(s => s.classroom_id).map(s => s.classroom_id));
+
+    container.innerHTML = gradeLevels.map(grade => {
+      const gradeSections = sections.filter(s => s.grade_level_id === grade.id);
+      const currentCount = gradeSections.length;
+
+      let tableHtml = '';
+      if (gradeSections.length > 0) {
+        tableHtml = `
+          <table class="section-table">
+            <thead>
+              <tr>
+                <th style="width:50px;">#</th>
+                <th>Homeroom Teacher</th>
+                <th>Classroom</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${gradeSections.map(sec => {
+                const teacherOptions = '<option value="">— Select —</option>' +
+                  teachers.map(t => {
+                    const taken = assignedTeacherIds.has(t.id) && t.id !== sec.homeroom_teacher_id;
+                    return `<option value="${t.id}" ${t.id === sec.homeroom_teacher_id ? 'selected' : ''} ${taken ? 'disabled' : ''}>${t.name}${taken ? ' (assigned)' : ''}</option>`;
+                  }).join('');
+
+                const classroomOptions = '<option value="">— Select —</option>' +
+                  classrooms.map(c => {
+                    const taken = assignedClassroomIds.has(c.id) && c.id !== sec.classroom_id;
+                    return `<option value="${c.id}" ${c.id === sec.classroom_id ? 'selected' : ''} ${taken ? 'disabled' : ''}>${c.name}${taken ? ' (assigned)' : ''}</option>`;
+                  }).join('');
+
+                return `
+                  <tr>
+                    <td style="font-weight:600;color:var(--text-secondary);">Section ${sec.section_number}</td>
+                    <td><select onchange="assignHomeroomTeacher(${sec.id}, this.value)">${teacherOptions}</select></td>
+                    <td><select onchange="assignSectionClassroom(${sec.id}, this.value)">${classroomOptions}</select></td>
+                  </tr>`;
+              }).join('')}
+            </tbody>
+          </table>`;
+      }
+
+      return `
+        <div class="grade-card">
+          <div class="grade-card-header">
+            <h4>${grade.name}</h4>
+            <label style="font-size:13px;color:var(--text-secondary);">Sections:</label>
+            <input type="number" min="0" max="20" value="${currentCount}" id="section-count-${grade.id}">
+            <button class="btn btn-sm" onclick="updateSectionCount(${grade.id})">Update</button>
+          </div>
+          ${tableHtml}
+        </div>`;
+    }).join('');
+  }
+
+  async function updateSectionCount(gradeId) {
+    const input = document.getElementById('section-count-' + gradeId);
+    const count = parseInt(input.value);
+    if (isNaN(count) || count < 0) {
+      showToast('Invalid section count.', true);
+      return;
+    }
+    const res = await fetch(`/api/gradelevels/${gradeId}/sections`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ count })
+    });
+    const data = await res.json();
+    if (data.error) {
+      showToast(data.error, true);
+    } else {
+      await fetchSections();
+      showToast(data.message);
+    }
+  }
+
+  async function assignHomeroomTeacher(sectionId, value) {
+    const teacherId = value ? parseInt(value) : null;
+    const res = await fetch(`/api/sections/${sectionId}/teacher`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ teacher_id: teacherId })
+    });
+    const data = await res.json();
+    if (data.error) {
+      showToast(data.error, true);
+    } else {
+      await fetchSections();
+      showToast(data.message);
+    }
+  }
+
+  async function assignSectionClassroom(sectionId, value) {
+    const classroomId = value ? parseInt(value) : null;
+    const res = await fetch(`/api/sections/${sectionId}/classroom`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ classroom_id: classroomId })
+    });
+    const data = await res.json();
+    if (data.error) {
+      showToast(data.error, true);
+    } else {
+      await fetchSections();
       showToast(data.message);
     }
   }
