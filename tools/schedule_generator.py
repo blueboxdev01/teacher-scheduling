@@ -112,6 +112,12 @@ def generate_schedule(db_path=None):
                 monday_plan.append((teacher_id, classroom_id, first_slot['slot_order'], 'Homeroom'))
 
     # Phase 2: Fill remaining Monday slots with greedy assignment
+    # Build homeroom teacher lookup: teacher_id -> their homeroom classroom_id
+    homeroom_teacher_classroom = {}
+    for section in sections:
+        if section['homeroom_teacher_id'] and section['classroom_id']:
+            homeroom_teacher_classroom[section['homeroom_teacher_id']] = section['classroom_id']
+
     # Track which classroom each teacher was last assigned to (for variety)
     teacher_last_classroom = {}
 
@@ -130,6 +136,9 @@ def generate_schedule(db_path=None):
                 if (tid, slot['id']) in unavailable:
                     continue
                 if (tid, slot['id']) in teacher_slot_taken:
+                    continue
+                # Homeroom teachers can only be assigned to their own classroom
+                if tid in homeroom_teacher_classroom and homeroom_teacher_classroom[tid] != classroom['id']:
                     continue
                 candidates.append(teacher)
 
