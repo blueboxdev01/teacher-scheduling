@@ -11,7 +11,7 @@ from scheduler_db import (
     get_db, get_teachers, get_classrooms, get_time_slots,
     get_constraints, get_full_schedule, create_assignment,
     clear_auto_assignments, detect_conflicts, DEFAULT_DB_PATH,
-    get_teachers_with_subjects
+    get_teachers_with_subjects, get_sections
 )
 
 
@@ -64,8 +64,43 @@ def generate_schedule(db_path=None):
     assigned = 0
     unassigned = 0
     skipped_breaks = 0
+    homeroom_assigned = 0
 
-    # Iterate over each (classroom, time_slot) pair
+    # Phase 1: Assign homeroom sessions for the first period of each day
+    sections = get_sections(db_path=db_path)
+    # Find the first non-break slot for each day
+    first_slots = {}
+    for slot in time_slots:
+        if slot['is_break']:
+            continue
+        if slot['day'] not in first_slots:
+            first_slots[slot['day']] = slot
+
+    for section in sections:
+        teacher_id = section['homeroom_teacher_id']
+        classroom_id = section['classroom_id']
+        if not teacher_id or not classroom_id:
+            continue
+
+        for day, slot in first_slots.items():
+            # Skip if already taken
+            if (teacher_id, slot['id']) in teacher_slot_taken:
+                continue
+            if (classroom_id, slot['id']) in classroom_slot_taken:
+                continue
+
+            result, error = create_assignment(
+                teacher_id, classroom_id, slot['id'],
+                subject='Homeroom', is_manual=0, db_path=db_path
+            )
+            if result:
+                homeroom_assigned += 1
+                assigned += 1
+                teacher_slot_taken.add((teacher_id, slot['id']))
+                classroom_slot_taken.add((classroom_id, slot['id']))
+                teacher_load[teacher_id] = teacher_load.get(teacher_id, 0) + 1
+
+    # Phase 2: Iterate over each (classroom, time_slot) pair
     for slot in time_slots:
         if slot['is_break']:
             skipped_breaks += len(classrooms)
@@ -129,7 +164,8 @@ def generate_schedule(db_path=None):
         'unassigned': unassigned,
         'skipped_breaks': skipped_breaks,
         'conflicts': conflicts,
-        'message': f'Schedule generated: {assigned} assigned, {unassigned} unassigned, {len(conflicts)} conflicts.'
+        'homeroom_assigned': homeroom_assigned,
+        'message': f'Schedule generated: {assigned} assigned ({homeroom_assigned} homeroom), {unassigned} unassigned, {len(conflicts)} conflicts.'
     }
 
 

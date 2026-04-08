@@ -1146,6 +1146,10 @@
       return;
     }
     container.innerHTML = teachers.map(t => {
+      const homeroom = sections.find(s => s.homeroom_teacher_id === t.id);
+      const homeroomBadge = homeroom
+        ? `<span style="display:inline-block;background:var(--accent);color:white;font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;margin-left:8px;">Homeroom: ${homeroom.grade_name} Sec ${homeroom.section_number}</span>`
+        : '';
       const assignedSubs = (t.subjects || []).map(s =>
         `<span class="subject-tag">${s.name} <span class="tag-remove" onclick="event.stopPropagation();removeSubjectFromTeacher(${t.id}, ${s.id})">&times;</span></span>`
       ).join('');
@@ -1171,7 +1175,7 @@
           <div style="display:flex;align-items:center;gap:12px;">
             <div class="card-color" style="background:${t.color}"></div>
             <div class="card-info">
-              <h4>${t.name}</h4>
+              <h4>${t.name}${homeroomBadge}</h4>
               <p>${t.email || 'No email'}</p>
             </div>
             <a class="btn btn-sm" href="/teacher/${t.id}" onclick="event.stopPropagation()" style="margin-left:auto;" target="_blank">Dashboard</a>
