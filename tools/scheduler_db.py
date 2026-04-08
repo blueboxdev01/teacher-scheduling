@@ -160,6 +160,73 @@ def init_db(db_path=None):
                     (grade[0], sec_num, classroom_id)
                 )
 
+    # Seed teachers from school spreadsheet if empty
+    existing_teachers = c.execute("SELECT COUNT(*) FROM teachers").fetchone()[0]
+    if existing_teachers == 0:
+        # Build lookup maps
+        grade_map = {row[1]: row[0] for row in c.execute("SELECT id, name FROM grade_levels").fetchall()}
+        subject_map = {row[1]: row[0] for row in c.execute("SELECT id, name FROM subjects").fetchall()}
+
+        # Homeroom teachers: (name, grade, section_number)
+        homeroom_teachers = [
+            ('Mr. Dan', 'G1', 1),
+            ('Ms. Trysie', 'G1', 2),
+            ('Mr. JP', 'G1', 3),
+            ('Ms. Kira', 'G2', 1),
+            ('Ms. Laurian', 'G2', 2),
+            ('Ms. Mollie', 'G2', 3),
+            ('Ms. Nicole', 'G3', 1),
+            ('Mr. Martin', 'G3', 2),
+            ('Mr. Adrian', 'G3', 3),
+            ('Ms. Dominique', 'G4', 1),
+            ('Mr. Richard', 'G4', 2),
+            ('Ms. Irene', 'G4', 3),
+            ('Mr. JC', 'G5', 1),
+            ('Mr. Conor', 'G5', 2),
+        ]
+
+        for name, grade, sec_num in homeroom_teachers:
+            color = TEACHER_COLORS[c.execute("SELECT COUNT(*) FROM teachers").fetchone()[0] % len(TEACHER_COLORS)]
+            c.execute("INSERT INTO teachers (name, email, color) VALUES (?, ?, ?)", (name, '', color))
+            teacher_id = c.lastrowid
+            # Assign grade level
+            gid = grade_map[grade]
+            c.execute("INSERT INTO teacher_grade_levels (teacher_id, grade_level_id) VALUES (?, ?)", (teacher_id, gid))
+            # Assign as homeroom for their section
+            c.execute(
+                "UPDATE sections SET homeroom_teacher_id = ? WHERE grade_level_id = ? AND section_number = ?",
+                (teacher_id, gid, sec_num)
+            )
+
+        # Specialist teachers: (name, grades, subjects)
+        specialist_teachers = [
+            ('Mr. Jonathan', ['G1', 'G2', 'G3', 'G5'], ['PE']),
+            ('Ms. Ave', ['G1', 'G2', 'G3', 'G4'], ['PE']),
+            ('Mr. Khirby', ['G1', 'G2', 'G3', 'G4', 'G5'], ['PE', 'Art']),
+            ('Ms. Mint', ['G1', 'G2', 'G3', 'G4', 'G5'], ['Music']),
+            ('Ms. Wei', ['G1', 'G2', 'G3', 'G4', 'G5'], ['Chinese']),
+            ('Ms. Maria', ['G1', 'G2', 'G3'], ['Design']),
+            ('Mr. PJ', ['G1', 'G2', 'G3', 'G4', 'G5'], ['Computer Science']),
+            ('Ms. Nallie', ['G1', 'G2', 'G3', 'G4', 'G5'], ['SEL']),
+            ('Ms. Moh', ['G1', 'G2', 'G3'], ['Thai']),
+            ('Ms. Tai', ['G1', 'G2', 'G3', 'G5'], ['Thai']),
+            ('Mr. Nueng', ['G3', 'G4', 'G5'], ['Thai']),
+            ('Mr. Bon', ['G4', 'G5'], ['Design']),
+        ]
+
+        for name, grades, subs in specialist_teachers:
+            color = TEACHER_COLORS[c.execute("SELECT COUNT(*) FROM teachers").fetchone()[0] % len(TEACHER_COLORS)]
+            c.execute("INSERT INTO teachers (name, email, color) VALUES (?, ?, ?)", (name, '', color))
+            teacher_id = c.lastrowid
+            for grade in grades:
+                if grade in grade_map:
+                    c.execute("INSERT INTO teacher_grade_levels (teacher_id, grade_level_id) VALUES (?, ?)",
+                              (teacher_id, grade_map[grade]))
+            for sub in subs:
+                if sub in subject_map:
+                    c.execute("INSERT INTO teacher_subjects (teacher_id, subject_id) VALUES (?, ?)",
+                              (teacher_id, subject_map[sub]))
+
     # Seed time slots if empty
     existing = c.execute("SELECT COUNT(*) FROM time_slots").fetchone()[0]
     if existing == 0:
